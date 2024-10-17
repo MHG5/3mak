@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List with Notifications</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        #todo-form {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        #todo-input, #todo-time {
+            flex-grow: 1;
+            margin-right: 10px;
+            padding: 5px;
+        }
+        button {
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            background-color: #f1f1f1;
+            margin-bottom: 10px;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .delete-btn {
+            background-color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <h1>To-Do List with Notifications</h1>
+    <form id="todo-form">
+        <input type="text" id="todo-input" placeholder="Enter a task" required>
+        <input type="datetime-local" id="todo-time" required>
+        <button type="submit">Add Task</button>
+    </form>
+    <ul id="todo-list"></ul>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('todo-form');
+            const input = document.getElementById('todo-input');
+            const timeInput = document.getElementById('todo-time');
+            const list = document.getElementById('todo-list');
+
+            // Request notification permission
+            if ('Notification' in window) {
+                Notification.requestPermission();
+            }
+
+            // Load tasks from localStorage
+            let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+
+            function saveTasks() {
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+            }
+
+            function renderTasks() {
+                list.innerHTML = '';
+                tasks.forEach((task, index) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span>${task.text} (${moment(task.time).format('MMM D, YYYY HH:mm')})</span>
+                        <button class="delete-btn" data-index="${index}">Delete</button>
+                    `;
+                    list.appendChild(li);
+                });
+            }
+
+            function scheduleNotification(task) {
+                const now = new Date().getTime();
+                const notificationTime = new Date(task.time).getTime();
+                const delay = notificationTime - now;
+
+                if (delay > 0) {
+                    setTimeout(() => {
+                        if ('Notification' in window && Notification.permission === 'granted') {
+                            new Notification('Task Reminder', {
+                                body: task.text,
+                                icon: 'link lal icon'
+                            });
+                        }
+                    }, delay);
+                }
+            }
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const text = input.value.trim();
+                const time = timeInput.value;
+                if (text && time) {
+                    const task = { text, time };
+                    tasks.push(task);
+                    saveTasks();
+                    renderTasks();
+                    scheduleNotification(task);
+                    input.value = '';
+                    timeInput.value = '';
+                }
+            });
+
+            list.addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-btn')) {
+                    const index = e.target.dataset.index;
+                    tasks.splice(index, 1);
+                    saveTasks();
+                    renderTasks();
+                }
+            });
+
+            renderTasks();
+            tasks.forEach(scheduleNotification);
+        });
+    </script>
+</body>
+</html>
